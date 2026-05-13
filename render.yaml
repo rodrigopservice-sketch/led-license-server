@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: led-license-server
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: ADMIN_SECRET
+        generateValue: true
+      - key: DB_PATH
+        value: /opt/render/project/src/licenses.db
+    disk:
+      name: licenses-db
+      mountPath: /opt/render/project/src
+      sizeGB: 1

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LED Screen Design — Panel de Licencias</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:#0a0e14;color:#c8d6e5;min-height:100vh}
+  .header{background:#0d1520;border-bottom:1px solid #1a2535;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
+  .logo{font-size:15px;font-weight:700;color:#e8a020;letter-spacing:.05em}
+  .logo span{color:#5ab0f0;font-weight:400}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:20px 24px}
+  .stat{background:#0d1520;border:1px solid #1a2535;border-radius:8px;padding:16px;text-align:center}
+  .stat-n{font-size:28px;font-weight:700;color:#e8a020}
+  .stat-l{font-size:11px;color:#5a7080;margin-top:4px;text-transform:uppercase;letter-spacing:.05em}
+  .main{padding:0 24px 24px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .card{background:#0d1520;border:1px solid #1a2535;border-radius:8px;padding:20px}
+  .card h2{font-size:13px;color:#e8a020;font-weight:700;letter-spacing:.05em;margin-bottom:16px;text-transform:uppercase}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+  label{display:block;font-size:11px;color:#5a7080;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+  input,select{width:100%;background:#080e18;border:1px solid #1e2d3d;border-radius:4px;padding:8px 10px;color:#c8d6e5;font-size:12px;outline:none}
+  input:focus,select:focus{border-color:#e8a020}
+  .btn{padding:9px 18px;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;transition:.15s}
+  .btn-gold{background:#e8a020;color:#000}
+  .btn-gold:hover{background:#d4941c}
+  .btn-red{background:#c0392b;color:#fff}
+  .btn-red:hover{background:#a93226}
+  .btn-teal{background:#1a3a3a;color:#2abfbf;border:1px solid #2abfbf}
+  .btn-sm{padding:4px 10px;font-size:11px}
+  .table-wrap{overflow-x:auto;margin-top:8px;max-height:420px;overflow-y:auto}
+  table{width:100%;border-collapse:collapse;font-size:11px}
+  th{background:#080e18;color:#5a7080;padding:8px 10px;text-align:left;font-weight:600;position:sticky;top:0;text-transform:uppercase;font-size:10px;letter-spacing:.04em;border-bottom:1px solid #1a2535}
+  td{padding:8px 10px;border-bottom:1px solid #111e2d;color:#a0b4c4;vertical-align:middle}
+  tr:hover td{background:#0a1220}
+  .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
+  .badge-on{background:#1a3a1a;color:#2abf2a}
+  .badge-off{background:#3a1a1a;color:#c03030}
+  .key{font-family:monospace;color:#e8a020;font-size:12px;background:#080e18;padding:3px 7px;border-radius:3px;cursor:pointer;user-select:all}
+  .log-item{padding:6px 10px;border-bottom:1px solid #111e2d;font-size:11px}
+  .log-item .ev{color:#e8a020;font-weight:600;min-width:160px;display:inline-block}
+  .log-item .ts{color:#3a5060;font-size:10px}
+  .toast{position:fixed;bottom:20px;right:20px;background:#1a3a1a;border:1px solid #2abf2a;color:#2abf2a;padding:10px 16px;border-radius:6px;font-size:12px;z-index:999;display:none}
+  .full{grid-column:1/-1}
+  .login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh}
+  .login-box{background:#0d1520;border:1px solid #1a2535;border-radius:10px;padding:32px;width:340px;text-align:center}
+  .login-box h1{font-size:18px;color:#e8a020;margin-bottom:6px}
+  .login-box p{font-size:12px;color:#5a7080;margin-bottom:20px}
+  .login-box input{margin-bottom:12px}
+  #app{display:none}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-box">
+    <h1>LED Screen Design</h1>
+    <p>Panel de Administración de Licencias</p>
+    <div style="margin-bottom:8px"><label>Clave de administrador</label>
+    <input type="password" id="secretInput" placeholder="Ingresá tu clave secreta"
+           onkeydown="if(event.key==='Enter')login()"/></div>
+    <button class="btn btn-gold" style="width:100%" onclick="login()">Ingresar</button>
+    <p id="loginErr" style="color:#c03030;font-size:11px;margin-top:8px"></p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="header">
+    <div class="logo">LED SCREEN DESIGN <span>— Panel de Licencias</span></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-teal btn-sm" onclick="loadAll()">↻ Actualizar</button>
+      <button class="btn btn-sm" style="background:#1a2535;color:#5a7080" onclick="logout()">Salir</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-n" id="sTotal">—</div><div class="stat-l">Total licencias</div></div>
+    <div class="stat"><div class="stat-n" id="sActive">—</div><div class="stat-l">Activas</div></div>
+    <div class="stat"><div class="stat-n" id="sInactive">—</div><div class="stat-l">Inactivas</div></div>
+    <div class="stat"><div class="stat-n" id="sDevices">—</div><div class="stat-l">Dispositivos</div></div>
+  </div>
+
+  <div class="main">
+
+    <!-- CREAR LICENCIA -->
+    <div class="card">
+      <h2>Crear nueva licencia</h2>
+      <div class="form-row">
+        <div><label>Nombre del cliente</label><input id="fName" placeholder="Juan García"/></div>
+        <div><label>Email</label><input id="fEmail" type="email" placeholder="juan@email.com"/></div>
+      </div>
+      <div class="form-row">
+        <div><label>Plan</label>
+          <select id="fPlan">
+            <option value="pro">Pro</option>
+            <option value="studio">Studio</option>
+            <option value="trial">Trial</option>
+          </select>
+        </div>
+        <div><label>Dispositivos máx.</label>
+          <select id="fDevices">
+            <option value="1">1 dispositivo</option>
+            <option value="2">2 dispositivos</option>
+            <option value="3">3 dispositivos</option>
+            <option value="5">5 dispositivos</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div><label>Vence (dejar vacío = sin vencimiento)</label>
+          <input id="fExpires" type="date"/></div>
+        <div><label>Notas internas</label>
+          <input id="fNotes" placeholder="Ej: Pago recibido via MP"/></div>
+      </div>
+      <button class="btn btn-gold" onclick="createLicense()">+ Generar licencia</button>
+      <div id="newKeyResult" style="margin-top:12px;display:none">
+        <label>Clave generada — clic para copiar:</label>
+        <div style="margin-top:6px">
+          <span class="key" id="newKeyDisplay" onclick="copyKey(this)"></span>
+          <span style="font-size:10px;color:#3a5060;margin-left:8px">clic para copiar</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACTIVIDAD RECIENTE -->
+    <div class="card">
+      <h2>Actividad reciente</h2>
+      <div class="table-wrap" id="logList">
+        <div style="color:#3a5060;font-size:12px;padding:10px">Cargando...</div>
+      </div>
+    </div>
+
+    <!-- LISTA DE LICENCIAS -->
+    <div class="card full">
+      <h2>Todas las licencias</h2>
+      <input id="searchInput" placeholder="Buscar por clave, nombre o email..."
+             oninput="filterLicenses()" style="margin-bottom:12px"/>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Clave</th><th>Cliente</th><th>Email</th><th>Plan</th>
+              <th>Dispositivos</th><th>Vence</th><th>Estado</th><th>Creada</th><th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="licenseTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let SECRET = '';
+let allLicenses = [];
+
+// ── Login ──────────────────────────────────────────────────
+async function login(){
+  SECRET = document.getElementById('secretInput').value;
+  try{
+    const r = await api('GET','/admin/stats');
+    if(r.ok){
+      document.getElementById('loginWrap').style.display='none';
+      document.getElementById('app').style.display='block';
+      loadAll();
+    }
+  }catch(e){
+    document.getElementById('loginErr').textContent='Clave incorrecta';
+  }
+}
+
+function logout(){
+  SECRET='';
+  document.getElementById('loginWrap').style.display='flex';
+  document.getElementById('app').style.display='none';
+  document.getElementById('secretInput').value='';
+}
+
+// ── API helper ─────────────────────────────────────────────
+async function api(method, path, body){
+  const opts = {
+    method,
+    headers:{'Content-Type':'application/json','X-Admin-Secret':SECRET}
+  };
+  if(body) opts.body = JSON.stringify(body);
+  const r = await fetch(path, opts);
+  return r.json();
+}
+
+// ── Cargar todo ────────────────────────────────────────────
+async function loadAll(){
+  loadStats();
+  loadLicenses();
+  loadLog();
+}
+
+async function loadStats(){
+  const d = await api('GET','/admin/stats');
+  if(!d.ok) return;
+  document.getElementById('sTotal').textContent   = d.stats.total;
+  document.getElementById('sActive').textContent  = d.stats.active;
+  document.getElementById('sInactive').textContent= d.stats.inactive;
+  document.getElementById('sDevices').textContent = d.stats.devices;
+}
+
+async function loadLicenses(){
+  const d = await api('GET','/admin/licenses');
+  if(!d.ok) return;
+  allLicenses = d.licenses;
+  renderLicenses(allLicenses);
+}
+
+function renderLicenses(list){
+  const tb = document.getElementById('licenseTable');
+  tb.innerHTML = list.map(l=>`
+    <tr>
+      <td><span class="key" onclick="copyKey(this)">${l.key}</span></td>
+      <td>${l.name||'—'}</td>
+      <td style="color:#5ab0f0">${l.email||'—'}</td>
+      <td><span class="badge" style="background:#1a2535;color:#e8a020">${l.plan}</span></td>
+      <td style="text-align:center">${l.devices_used}/${l.max_devices}</td>
+      <td style="color:#5a7080;font-size:10px">${l.expires_at?l.expires_at.substring(0,10):'Sin vencimiento'}</td>
+      <td><span class="badge ${l.active?'badge-on':'badge-off'}">${l.active?'Activa':'Inactiva'}</span></td>
+      <td style="color:#3a5060;font-size:10px">${l.created_at.substring(0,10)}</td>
+      <td>
+        <button class="btn btn-sm btn-teal" onclick="toggleLicense('${l.key}')">
+          ${l.active?'Desactivar':'Activar'}
+        </button>
+        <button class="btn btn-sm" style="background:#1a2535;color:#c8a060;margin-left:4px"
+                onclick="clearActivations('${l.key}')">
+          Liberar
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterLicenses(){
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  if(!q) return renderLicenses(allLicenses);
+  renderLicenses(allLicenses.filter(l=>
+    (l.key||'').toLowerCase().includes(q) ||
+    (l.name||'').toLowerCase().includes(q) ||
+    (l.email||'').toLowerCase().includes(q)
+  ));
+}
+
+async function loadLog(){
+  const d = await api('GET','/admin/log');
+  if(!d.ok) return;
+  document.getElementById('logList').innerHTML = d.logs.slice(0,15).map(l=>`
+    <div class="log-item">
+      <span class="ev">${l.event}</span>
+      <span style="color:#c8a060">${l.license_key||''}</span>
+      <span style="color:#5a7080"> — ${l.details||''}</span>
+      <br><span class="ts">${l.created_at}</span>
+    </div>
+  `).join('') || '<div style="color:#3a5060;padding:10px;font-size:12px">Sin actividad aún</div>';
+}
+
+// ── Crear licencia ─────────────────────────────────────────
+async function createLicense(){
+  const body = {
+    name:      document.getElementById('fName').value,
+    email:     document.getElementById('fEmail').value,
+    plan:      document.getElementById('fPlan').value,
+    maxDevices:parseInt(document.getElementById('fDevices').value),
+    expiresAt: document.getElementById('fExpires').value || null,
+    notes:     document.getElementById('fNotes').value,
+  };
+  const d = await api('POST','/admin/licenses', body);
+  if(d.ok){
+    document.getElementById('newKeyDisplay').textContent = d.key;
+    document.getElementById('newKeyResult').style.display='block';
+    toast('Licencia creada: ' + d.key);
+    loadAll();
+    // Limpiar form
+    ['fName','fEmail','fExpires','fNotes'].forEach(id=>document.getElementById(id).value='');
+  }
+}
+
+// ── Acciones ───────────────────────────────────────────────
+async function toggleLicense(key){
+  const d = await api('PUT',`/admin/licenses/${key}/toggle`);
+  if(d.ok){ toast(d.active?'Licencia activada':'Licencia desactivada'); loadAll(); }
+}
+
+async function clearActivations(key){
+  if(!confirm(`¿Liberar todos los dispositivos de ${key}?\nEl usuario podrá activar en un dispositivo nuevo.`)) return;
+  const d = await api('DELETE',`/admin/licenses/${key}/activations`);
+  if(d.ok){ toast('Activaciones liberadas'); loadAll(); }
+}
+
+// ── Utilidades ─────────────────────────────────────────────
+function copyKey(el){
+  navigator.clipboard.writeText(el.textContent);
+  toast('Clave copiada al portapapeles');
+}
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display='block';
+  setTimeout(()=>t.style.display='none', 2500);
+}
+
+// Auto-login si viene el secret en la URL
+const urlSecret = new URLSearchParams(location.search).get('secret');
+if(urlSecret){ document.getElementById('secretInput').value=urlSecret; login(); }
+</script>
+</body>
+</html>
