@@ -18,8 +18,17 @@ let DB = { licenses: [], activations: [], log: [] };
 function loadDB() {
   try {
     const raw = process.env.DB_DATA;
-    if (raw) DB = JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
-  } catch(e) { console.log('DB nueva:', e.message); }
+    if (raw && raw !== 'e30=') {
+      const parsed = JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
+      if (parsed && typeof parsed === 'object') DB = parsed;
+    }
+    if (!DB.licenses) DB.licenses = [];
+    if (!DB.activations) DB.activations = [];
+    if (!DB.log) DB.log = [];
+  } catch(e) {
+    console.log('DB nueva:', e.message);
+    DB = { licenses: [], activations: [], log: [] };
+  }
   return DB;
 }
 
