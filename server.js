@@ -10,49 +10,64 @@ const https = require('https');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const ADMIN_SECRET = process.env.ADMIN_SECRET || 'cambia-esta-clave-2024';
-const RENDER_API_KEY = process.env.RENDER_API_KEY || '';
-const RENDER_SERVICE_ID = process.env.RENDER_SERVICE_ID || '';
+const JSONBIN_KEY = process.env.JSONBIN_KEY || '';
+const JSONBIN_BIN = process.env.JSONBIN_BIN || '';
 
 let DB = { licenses: [], activations: [], log: [] };
 
+// ── Cargar datos desde JSONBin ───────────────────────────────
 function loadDB() {
-  try {
-    const raw = process.env.DB_DATA;
-    if (raw && raw !== 'e30=') {
-      const parsed = JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
-      if (parsed && typeof parsed === 'object') DB = parsed;
-    }
-    if (!DB.licenses) DB.licenses = [];
-    if (!DB.activations) DB.activations = [];
-    if (!DB.log) DB.log = [];
-  } catch(e) {
-    console.log('DB nueva:', e.message);
-    DB = { licenses: [], activations: [], log: [] };
-  }
-  return DB;
+  return new Promise((resolve) => {
+    if (!JSONBIN_KEY || !JSONBIN_BIN) { resolve(DB); return; }
+    const options = {
+      hostname: 'api.jsonbin.io',
+      path: `/v3/b/${JSONBIN_BIN}/latest`,
+      method: 'GET',
+      headers: { 'X-Master-Key': JSONBIN_KEY }
+    };
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', d => data += d);
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.record) {
+            DB = parsed.record;
+            if (!DB.licenses) DB.licenses = [];
+            if (!DB.activations) DB.activations = [];
+            if (!DB.log) DB.log = [];
+          }
+        } catch(e) { console.log('Error cargando DB:', e.message); }
+        resolve(DB);
+      });
+    });
+    req.on('error', (e) => { console.log('Error conectando JSONBin:', e.message); resolve(DB); });
+    req.end();
+  });
 }
 
-async function saveDB() {
-  const encoded = Buffer.from(JSON.stringify(DB)).toString('base64');
-  if (!RENDER_API_KEY || !RENDER_SERVICE_ID) {
-    console.log('Sin Render API — datos solo en memoria');
-    return;
-  }
-  const body = JSON.stringify({ envVars: [{ key: 'DB_DATA', value: encoded }] });
+// ── Guardar datos en JSONBin ─────────────────────────────────
+function saveDB() {
+  if (!JSONBIN_KEY || !JSONBIN_BIN) return Promise.resolve();
+  const body = JSON.stringify(DB);
   return new Promise((resolve) => {
     const options = {
-      hostname: 'api.render.com',
-      path: `/v1/services/${RENDER_SERVICE_ID}/env-vars`,
+      hostname: 'api.jsonbin.io',
+      path: `/v3/b/${JSONBIN_BIN}`,
       method: 'PUT',
       headers: {
-        'Authorization': `Bearer ${RENDER_API_KEY}`,
+        'X-Master-Key': JSONBIN_KEY,
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(body)
       }
     };
-    const req = https.request(options, (res) => { res.on('data',()=>{}); res.on('end',resolve); });
+    const req = https.request(options, (res) => {
+      res.on('data', () => {});
+      res.on('end', resolve);
+    });
     req.on('error', (e) => { console.log('Error guardando:', e.message); resolve(); });
-    req.write(body); req.end();
+    req.write(body);
+    req.end();
   });
 }
 
@@ -66,9 +81,6 @@ function generateKey() {
   const seg = () => crypto.randomBytes(2).toString('hex').toUpperCase();
   return `LED-${seg()}-${seg()}-${seg()}-${seg()}`;
 }
-
-loadDB();
-console.log(`✅ DB cargada: ${DB.licenses.length} licencias, ${DB.activations.length} activaciones`);
 
 app.use(express.json());
 app.use(express.static(__dirname));
@@ -85,6 +97,10 @@ function requireAdmin(req, res, next) {
     return res.status(401).json({ error: 'No autorizado' });
   next();
 }
+
+// ═══════════════════════════════════════════════════════════
+//  API PÚBLICA
+// ═══════════════════════════════════════════════════════════
 
 app.post('/api/activate', (req, res) => {
   const { licenseKey, machineId, machineName } = req.body;
@@ -121,6 +137,10 @@ app.post('/api/deactivate', (req, res) => {
   saveDB(); logEvent('DEACTIVATED',licenseKey,machineId,'Por usuario');
   res.json({ ok:true });
 });
+
+// ═══════════════════════════════════════════════════════════
+//  API ADMIN
+// ═══════════════════════════════════════════════════════════
 
 app.post('/admin/licenses', requireAdmin, (req, res) => {
   const { email, name, plan='pro', maxDevices=1, expiresAt, notes } = req.body;
@@ -161,4 +181,8 @@ app.get('/', (req, res) => {
   res.json({ status:'ok', service:'LED Screen Design License Server', version:'1.0.0' });
 });
 
-app.listen(PORT, () => console.log(`✅ Servidor corriendo en puerto ${PORT}`));
+// Iniciar servidor cargando DB primero
+loadDB().then(() => {
+  console.log(`✅ DB cargada: ${DB.licenses.length} licencias, ${DB.activations.length} activaciones`);
+  app.listen(PORT, () => console.log(`✅ Servidor corriendo en puerto ${PORT}`));
+});
